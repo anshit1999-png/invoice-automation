@@ -363,7 +363,7 @@ if run_button:
                                 pass
 
                             # =========================================
-                            # EXTRACT INVOICE
+                            # EXTRACT INVOICE NUMBER
                             # =========================================
 
                             invoice_match = re.search(
@@ -446,14 +446,14 @@ if run_button:
 
                     if len(invoice_rows) == 0:
 
-                        return pd.Series([
+                        return [
 
                             "NOT FOUND",
                             "NOT FOUND",
                             "NOT FOUND",
                             "INVOICE NOT FOUND"
 
-                        ])
+                        ]
 
                     matched_row = None
 
@@ -498,14 +498,14 @@ if run_button:
 
                     if matched_row is None:
 
-                        return pd.Series([
+                        return [
 
                             "NOT FOUND",
                             "NOT FOUND",
                             "NOT FOUND",
                             "VENDOR CODE MISMATCH"
 
-                        ])
+                        ]
 
                     excel_amount = matched_row[
                         amount_col
@@ -576,51 +576,59 @@ if run_button:
 
                         status = "AMOUNT MISMATCH"
 
-                    return pd.Series([
+                    return [
 
                         vendor_code,
                         excel_amount,
                         matched_amount,
                         status
 
-                    ])
-
-                # =========================================
-                # FAILSAFE
-                # =========================================
+                    ]
 
                 except Exception as e:
 
-                    return pd.Series([
+                    return [
 
                         "ERROR",
                         "ERROR",
                         "ERROR",
                         f"ERROR : {str(e)}"
 
-                    ])
+                    ]
 
             # =========================================
             # APPLY VALIDATION
             # =========================================
 
-            validation_results = report_df.apply(
-                validate_invoice,
-                axis=1
+            validation_results = []
+
+            for idx, row in report_df.iterrows():
+
+                result = validate_invoice(row)
+
+                validation_results.append(result)
+
+            validation_results_df = pd.DataFrame(
+
+                validation_results,
+
+                columns=[
+
+                    "Vendor_Code",
+                    "Excel_Amount",
+                    "Matched_Amount_In_PDF",
+                    "Final_Status"
+
+                ]
+
             )
 
-            validation_results.columns = [
-
-                "Vendor_Code",
-                "Excel_Amount",
-                "Matched_Amount_In_PDF",
-                "Final_Status"
-
-            ]
-
             report_df = pd.concat(
-                [report_df, validation_results],
+
+                [report_df, validation_results_df],
+
                 axis=1
+
             )
 
             # =========================================
