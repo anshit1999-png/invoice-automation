@@ -183,7 +183,9 @@ if run_button:
 
                 col_lower = col.lower().strip()
 
+                # =========================================
                 # INVOICE COLUMN
+                # =========================================
 
                 if (
                     "invoice" in col_lower
@@ -197,7 +199,9 @@ if run_button:
 
                     invoice_col = col
 
+                # =========================================
                 # VENDOR COLUMN
+                # =========================================
 
                 elif (
 
@@ -211,7 +215,9 @@ if run_button:
 
                     vendor_col = col
 
+                # =========================================
                 # AMOUNT COLUMN
+                # =========================================
 
                 elif (
 
@@ -322,93 +328,88 @@ if run_button:
 
             results = []
 
-            folders = os.listdir(
-                extract_path
-            )
+            for root, dirs, files in os.walk(extract_path):
 
-            for folder in folders:
+                for file in files:
 
-                folder_path = os.path.join(
-                    extract_path,
-                    folder
-                )
+                    if file.lower().endswith(".pdf"):
 
-                if os.path.isdir(folder_path):
+                        pdf_path = os.path.join(
+                            root,
+                            file
+                        )
 
-                    for file in os.listdir(folder_path):
+                        full_text = ""
 
-                        if file.lower().endswith(".pdf"):
+                        try:
 
-                            pdf_path = os.path.join(
-                                folder_path,
+                            with pdfplumber.open(
+                                pdf_path
+                            ) as pdf:
+
+                                for page in pdf.pages:
+
+                                    text = page.extract_text()
+
+                                    if text:
+                                        full_text += text
+
+                        except:
+                            pass
+
+                        # =========================================
+                        # EXTRACT INVOICE NUMBER
+                        # =========================================
+
+                        invoice_match = re.search(
+
+                            r'Invoice\s*No\.?\s*[:\-]?\s*([A-Z0-9\/\-]+)',
+
+                            full_text,
+
+                            re.IGNORECASE
+                        )
+
+                        if invoice_match:
+
+                            invoice_number = (
+                                invoice_match.group(1)
+                            )
+
+                        else:
+
+                            numbers = re.findall(
+                                r'\d+',
                                 file
                             )
 
-                            full_text = ""
-
-                            try:
-
-                                with pdfplumber.open(
-                                    pdf_path
-                                ) as pdf:
-
-                                    for page in pdf.pages:
-
-                                        text = page.extract_text()
-
-                                        if text:
-                                            full_text += text
-
-                            except:
-                                pass
-
-                            # =========================================
-                            # EXTRACT INVOICE NUMBER
-                            # =========================================
-
-                            invoice_match = re.search(
-
-                                r'Invoice\s*No\.?\s*[:\-]?\s*([A-Z0-9\/\-]+)',
-
-                                full_text,
-
-                                re.IGNORECASE
-                            )
-
-                            if invoice_match:
-
-                                invoice_number = (
-                                    invoice_match.group(1)
-                                )
-
+                            if numbers:
+                                invoice_number = numbers[-1]
                             else:
+                                invoice_number = "NOT FOUND"
 
-                                numbers = re.findall(
-                                    r'\d+',
-                                    file
-                                )
+                        results.append({
 
-                                if numbers:
-                                    invoice_number = numbers[-1]
-                                else:
-                                    invoice_number = "NOT FOUND"
+                            "Folder": os.path.basename(root),
+                            "File": file,
+                            "Invoice_Number": invoice_number,
+                            "PDF_Text": full_text
 
-                            results.append({
-
-                                "Folder": folder,
-                                "File": file,
-                                "Invoice_Number": invoice_number,
-                                "PDF_Text": full_text
-
-                            })
+                        })
 
             # =========================================
             # CREATE REPORT
             # =========================================
 
-            report_df = pd.DataFrame(
-                results
-            )
+            report_df = pd.DataFrame(results)
+
+            # =========================================
+            # DEBUG
+            # =========================================
+
+            st.write("DEBUG REPORT DF")
+            st.write(report_df.head())
+            st.write(report_df.columns.tolist())
 
             # =========================================
             # VALIDATION FUNCTION
@@ -635,36 +636,42 @@ if run_button:
             # DUPLICATE CHECK
             # =========================================
 
-            duplicate_df = report_df[
+            if "Invoice_Number" in report_df.columns:
 
-                report_df.duplicated(
+                duplicate_df = report_df[
 
-                    subset=[
-                        "Vendor_Code",
-                        "Invoice_Number"
-                    ],
+                    report_df.duplicated(
 
-                    keep=False
+                        subset=[
+                            "Vendor_Code",
+                            "Invoice_Number"
+                        ],
 
-                )
+                        keep=False
 
-            ]
+                    )
 
-            duplicate_df = duplicate_df[
+                ]
 
-                (
-                    duplicate_df["Vendor_Code"]
-                    != "NOT FOUND"
-                )
+                duplicate_df = duplicate_df[
 
-                &
+                    (
+                        duplicate_df["Vendor_Code"]
+                        != "NOT FOUND"
+                    )
 
-                (
-                    duplicate_df["Invoice_Number"]
-                    != "NOT FOUND"
-                )
+                    &
 
-            ]
+                    (
+                        duplicate_df["Invoice_Number"]
+                        != "NOT FOUND"
+                    )
+
+                ]
+
+            else:
+
+                duplicate_df = pd.DataFrame()
 
             # =========================================
             # MISMATCH REPORT
