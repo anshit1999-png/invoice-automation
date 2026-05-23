@@ -1,3 +1,7 @@
+# =========================================
+# IMPORT LIBRARIES
+# =========================================
+
 import streamlit as st
 import tempfile
 import zipfile
@@ -6,24 +10,20 @@ import pdfplumber
 import pandas as pd
 import re
 
-# -----------------------------------
+# =========================================
 # PAGE CONFIG
-# -----------------------------------
+# =========================================
 
 st.set_page_config(
     page_title="Invoice Reconciliation Automation",
     layout="wide"
 )
 
-# -----------------------------------
-# TITLE
-# -----------------------------------
-
 st.title("Invoice Reconciliation Automation System")
 
-# -----------------------------------
+# =========================================
 # FILE UPLOADS
-# -----------------------------------
+# =========================================
 
 zip_file = st.file_uploader(
     "Upload ZIP File",
@@ -35,17 +35,11 @@ excel_file = st.file_uploader(
     type=["xlsx"]
 )
 
-# -----------------------------------
-# RUN BUTTON
-# -----------------------------------
+run_button = st.button("Run Automation")
 
-run_button = st.button(
-    "Run Automation"
-)
-
-# -----------------------------------
+# =========================================
 # MAIN PROCESS
-# -----------------------------------
+# =========================================
 
 if run_button:
 
@@ -61,15 +55,11 @@ if run_button:
             "Files uploaded successfully"
         )
 
-        # -----------------------------------
-        # TEMP DIRECTORY
-        # -----------------------------------
-
         with tempfile.TemporaryDirectory() as temp_dir:
 
-            # -----------------------------------
+            # =========================================
             # SAVE ZIP
-            # -----------------------------------
+            # =========================================
 
             zip_path = os.path.join(
                 temp_dir,
@@ -80,9 +70,9 @@ if run_button:
 
                 f.write(zip_file.read())
 
-            # -----------------------------------
+            # =========================================
             # EXTRACT ZIP
-            # -----------------------------------
+            # =========================================
 
             extract_path = os.path.join(
                 temp_dir,
@@ -102,9 +92,9 @@ if run_button:
                 "ZIP Extracted Successfully"
             )
 
-            # -----------------------------------
-            # DETECT CORRECT SHEET
-            # -----------------------------------
+            # =========================================
+            # READ EXCEL
+            # =========================================
 
             excel_sheets = pd.ExcelFile(
                 excel_file
@@ -158,9 +148,9 @@ if run_button:
 
                     pass
 
-            # -----------------------------------
-            # SHEET NOT FOUND
-            # -----------------------------------
+            # =========================================
+            # NO SHEET FOUND
+            # =========================================
 
             if selected_sheet is None:
 
@@ -170,9 +160,9 @@ if run_button:
 
                 st.stop()
 
-            # -----------------------------------
-            # LOAD DETECTED SHEET
-            # -----------------------------------
+            # =========================================
+            # LOAD SHEET
+            # =========================================
 
             detail_df = pd.read_excel(
                 excel_file,
@@ -183,19 +173,21 @@ if run_button:
                 f"Detected Sheet : {selected_sheet}"
             )
 
-            # -----------------------------------
+            # =========================================
             # CLEAN COLUMN NAMES
-            # -----------------------------------
+            # =========================================
 
             detail_df.columns = (
+
                 detail_df.columns
                 .astype(str)
                 .str.strip()
+
             )
 
-            # -----------------------------------
+            # =========================================
             # DYNAMIC COLUMN DETECTION
-            # -----------------------------------
+            # =========================================
 
             invoice_col = None
             vendor_col = None
@@ -203,13 +195,11 @@ if run_button:
 
             for col in detail_df.columns:
 
-                col_lower = (
-                    col.lower().strip()
-                )
+                col_lower = col.lower().strip()
 
-                # -----------------------------------
-                # Invoice Column
-                # -----------------------------------
+                # =========================================
+                # INVOICE COLUMN
+                # =========================================
 
                 if (
                     "invoice" in col_lower
@@ -223,23 +213,25 @@ if run_button:
 
                     invoice_col = col
 
-                # -----------------------------------
-                # Vendor Column
-                # -----------------------------------
+                # =========================================
+                # VENDOR COLUMN
+                # =========================================
 
                 elif (
+
                     "vendor" in col_lower
                     or
                     "tpt" in col_lower
                     or
                     "code" in col_lower
+
                 ):
 
                     vendor_col = col
 
-                # -----------------------------------
-                # Amount Column
-                # -----------------------------------
+                # =========================================
+                # AMOUNT COLUMN
+                # =========================================
 
                 elif (
 
@@ -269,9 +261,9 @@ if run_button:
 
                             amount_col = col
 
-            # -----------------------------------
-            # CHECK REQUIRED COLUMNS
-            # -----------------------------------
+            # =========================================
+            # COLUMN CHECK
+            # =========================================
 
             if (
                 invoice_col is None
@@ -291,10 +283,6 @@ if run_button:
 
                 st.stop()
 
-            # -----------------------------------
-            # SHOW DETECTED COLUMNS
-            # -----------------------------------
-
             st.success(f"""
 
             Invoice Column : {invoice_col}
@@ -305,9 +293,9 @@ if run_button:
 
             """)
 
-            # -----------------------------------
-            # CLEAN DATA
-            # -----------------------------------
+            # =========================================
+            # CLEAN EXCEL DATA
+            # =========================================
 
             detail_df[invoice_col] = (
 
@@ -346,14 +334,13 @@ if run_button:
             detail_df[amount_col] = pd.to_numeric(
 
                 detail_df[amount_col],
-
                 errors="coerce"
 
             )
 
-            # -----------------------------------
-            # PROCESS PDF FILES
-            # -----------------------------------
+            # =========================================
+            # PROCESS PDFS
+            # =========================================
 
             results = []
 
@@ -374,7 +361,7 @@ if run_button:
 
                         if file.lower().endswith(".pdf"):
 
-                            # Ignore cheque request files
+                            # Ignore cheque files
 
                             if re.search(
 
@@ -402,9 +389,7 @@ if run_button:
 
                                     for page in pdf.pages:
 
-                                        text = (
-                                            page.extract_text()
-                                        )
+                                        text = page.extract_text()
 
                                         if text:
 
@@ -413,15 +398,14 @@ if run_button:
                             except Exception as e:
 
                                 st.write(
-                                    "PDF Error :",
-                                    file
+                                    f"PDF Error : {file}"
                                 )
 
                                 st.write(e)
 
-                            # -----------------------------------
+                            # =========================================
                             # EXTRACT INVOICE NUMBER
-                            # -----------------------------------
+                            # =========================================
 
                             invoice_match = re.search(
 
@@ -447,19 +431,15 @@ if run_button:
 
                                 if numbers:
 
-                                    invoice_number = (
-                                        numbers[-1]
-                                    )
+                                    invoice_number = numbers[-1]
 
                                 else:
 
-                                    invoice_number = (
-                                        "NOT FOUND"
-                                    )
+                                    invoice_number = "NOT FOUND"
 
-                            # -----------------------------------
-                            # SAVE RESULTS
-                            # -----------------------------------
+                            # =========================================
+                            # SAVE RESULT
+                            # =========================================
 
                             results.append({
 
@@ -470,17 +450,17 @@ if run_button:
 
                             })
 
-            # -----------------------------------
-            # CREATE DATAFRAME
-            # -----------------------------------
+            # =========================================
+            # CREATE REPORT DF
+            # =========================================
 
             report_df = pd.DataFrame(
                 results
             )
 
-            # -----------------------------------
+            # =========================================
             # VALIDATION FUNCTION
-            # -----------------------------------
+            # =========================================
 
             def validate_invoice(row):
 
@@ -498,9 +478,9 @@ if run_button:
                     pdf_text
                 )
 
-                # -----------------------------------
-                # FIND SAME INVOICE ROWS
-                # -----------------------------------
+                # =========================================
+                # FIND INVOICE ROWS
+                # =========================================
 
                 invoice_rows = detail_df[
 
@@ -510,9 +490,9 @@ if run_button:
 
                 ]
 
-                # -----------------------------------
+                # =========================================
                 # INVOICE NOT FOUND
-                # -----------------------------------
+                # =========================================
 
                 if len(invoice_rows) == 0:
 
@@ -525,9 +505,9 @@ if run_button:
 
                     ])
 
-                # -----------------------------------
-                # FIND CORRECT VENDOR
-                # -----------------------------------
+                # =========================================
+                # MATCH VENDOR + INVOICE
+                # =========================================
 
                 matched_row = None
 
@@ -542,8 +522,6 @@ if run_button:
                         '',
                         vendor_code
                     )
-
-                    # FULL VENDOR MATCH ONLY
 
                     vendor_found = (
 
@@ -566,9 +544,9 @@ if run_button:
                         matched_row = excel_row
                         break
 
-                # -----------------------------------
-                # VENDOR CODE MISMATCH
-                # -----------------------------------
+                # =========================================
+                # VENDOR MISMATCH
+                # =========================================
 
                 if matched_row is None:
 
@@ -581,9 +559,9 @@ if run_button:
 
                     ])
 
-                # -----------------------------------
-                # CORRECT EXCEL VALUES
-                # -----------------------------------
+                # =========================================
+                # EXCEL VALUES
+                # =========================================
 
                 excel_amount = matched_row[
                     amount_col
@@ -593,18 +571,16 @@ if run_button:
                     matched_row[vendor_col]
                 ).strip()
 
-                # -----------------------------------
-                # SEARCH EXCEL AMOUNT IN PDF
-                # ACCEPT ±2 RUPEES
-                # -----------------------------------
+                # =========================================
+                # AMOUNT CHECK
+                # =========================================
 
                 amount_found = False
 
                 matched_amount = "NOT FOUND"
 
                 pdf_amount_text = (
-                    pdf_text
-                    .replace(",", "")
+                    pdf_text.replace(",", "")
                 )
 
                 for diff in range(-2, 3):
@@ -627,8 +603,9 @@ if run_button:
 
                         for amt in amount_formats:
 
-                            amt_clean = (
-                                amt.replace(",", "")
+                            amt_clean = amt.replace(
+                                ",",
+                                ""
                             )
 
                             if amt_clean in pdf_amount_text:
@@ -645,9 +622,9 @@ if run_button:
 
                         pass
 
-                # -----------------------------------
+                # =========================================
                 # FINAL STATUS
-                # -----------------------------------
+                # =========================================
 
                 if amount_found:
 
@@ -656,6 +633,10 @@ if run_button:
                 else:
 
                     status = "AMOUNT MISMATCH"
+
+                # =========================================
+                # RETURN EXACTLY 4 VALUES
+                # =========================================
 
                 return pd.Series([
 
@@ -666,37 +647,31 @@ if run_button:
 
                 ])
 
-            # -----------------------------------
+            # =========================================
             # APPLY VALIDATION
-            # -----------------------------------
+            # =========================================
 
             report_df[[
-
                 "Vendor_Code",
                 "Excel_Amount",
                 "Matched_Amount_In_PDF",
                 "Final_Status"
-
             ]] = report_df.apply(
-
                 validate_invoice,
                 axis=1
-
             )
 
-            # -----------------------------------
+            # =========================================
             # DUPLICATE CHECK
-            # -----------------------------------
+            # =========================================
 
             duplicate_df = report_df[
 
                 report_df.duplicated(
 
                     subset=[
-
                         "Vendor_Code",
                         "Invoice_Number"
-
                     ],
 
                     keep=False
@@ -705,38 +680,34 @@ if run_button:
 
             ]
 
-            # -----------------------------------
-            # REMOVE INVALID ROWS
-            # -----------------------------------
-
             duplicate_df = duplicate_df[
 
-                (duplicate_df["Vendor_Code"] != "NOT FOUND")
+                (
+                    duplicate_df["Vendor_Code"]
+                    != "NOT FOUND"
+                )
 
                 &
 
-                (duplicate_df["Invoice_Number"] != "NOT FOUND")
+                (
+                    duplicate_df["Invoice_Number"]
+                    != "NOT FOUND"
+                )
 
             ]
-
-            # -----------------------------------
-            # SORT DUPLICATES
-            # -----------------------------------
 
             duplicate_df = duplicate_df.sort_values(
 
                 by=[
-
                     "Vendor_Code",
                     "Invoice_Number"
-
                 ]
 
             )
 
-            # -----------------------------------
+            # =========================================
             # MISMATCH REPORT
-            # -----------------------------------
+            # =========================================
 
             mismatch_df = report_df[
 
@@ -744,21 +715,11 @@ if run_button:
                     "Final_Status"
                 ] == "AMOUNT MISMATCH"
 
-            ][[
+            ]
 
-                "Folder",
-                "File",
-                "Vendor_Code",
-                "Invoice_Number",
-                "Excel_Amount",
-                "Matched_Amount_In_PDF",
-                "Final_Status"
-
-            ]]
-
-            # -----------------------------------
+            # =========================================
             # SUMMARY
-            # -----------------------------------
+            # =========================================
 
             total_files = len(report_df)
 
@@ -780,17 +741,15 @@ if run_button:
                 duplicate_df
             )
 
-            # -----------------------------------
+            # =========================================
             # DASHBOARD
-            # -----------------------------------
+            # =========================================
 
             st.subheader(
                 "Validation Summary"
             )
 
-            col1, col2, col3, col4 = (
-                st.columns(4)
-            )
+            col1, col2, col3, col4 = st.columns(4)
 
             col1.metric(
                 "Total Files",
@@ -812,9 +771,9 @@ if run_button:
                 duplicate_count
             )
 
-            # -----------------------------------
-            # FINAL REPORT
-            # -----------------------------------
+            # =========================================
+            # SHOW REPORT
+            # =========================================
 
             st.subheader(
                 "Final Validation Report"
@@ -822,9 +781,9 @@ if run_button:
 
             st.dataframe(report_df)
 
-            # -----------------------------------
-            # SAVE REPORTS
-            # -----------------------------------
+            # =========================================
+            # SAVE EXCEL REPORTS
+            # =========================================
 
             final_report_path = os.path.join(
                 temp_dir,
@@ -833,7 +792,7 @@ if run_button:
 
             duplicate_report_path = os.path.join(
                 temp_dir,
-                "Duplicate_Bills_Report.xlsx"
+                "Duplicate_Report.xlsx"
             )
 
             mismatch_report_path = os.path.join(
@@ -856,9 +815,9 @@ if run_button:
                 index=False
             )
 
-            # -----------------------------------
-            # DOWNLOAD FILES
-            # -----------------------------------
+            # =========================================
+            # DOWNLOAD BUTTONS
+            # =========================================
 
             final_file = open(
                 final_report_path,
@@ -885,7 +844,7 @@ if run_button:
             st.download_button(
                 label="Download Duplicate Report",
                 data=duplicate_file,
-                file_name="Duplicate_Bills_Report.xlsx",
+                file_name="Duplicate_Report.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
