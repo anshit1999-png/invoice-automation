@@ -404,14 +404,6 @@ if run_button:
             report_df = pd.DataFrame(results)
 
             # =========================================
-            # DEBUG
-            # =========================================
-
-            st.write("DEBUG REPORT DF")
-            st.write(report_df.head())
-            st.write(report_df.columns.tolist())
-
-            # =========================================
             # VALIDATION FUNCTION
             # =========================================
 
@@ -516,50 +508,37 @@ if run_button:
                         matched_row[vendor_col]
                     ).strip()
 
-                    amount_found = False
-
-                    matched_amount = "NOT FOUND"
-
-                    pdf_amount_text = (
-                        pdf_text.replace(",", "")
-                    )
-
                     # =========================================
                     # AMOUNT MATCH
                     # =========================================
 
-                    for diff in range(-2, 3):
+                    amount_found = False
+                    matched_amount = "NOT FOUND"
+
+                    pdf_numbers = re.findall(
+
+                        r'\d+\.\d+|\d+',
+
+                        pdf_text.replace(",", "")
+
+                    )
+
+                    pdf_numbers = [
+
+                        float(x)
+
+                        for x in pdf_numbers
+
+                    ]
+
+                    for num in pdf_numbers:
 
                         try:
 
-                            check_amount = round(
-                                excel_amount + diff,
-                                2
-                            )
+                            if abs(num - excel_amount) <= 2:
 
-                            amount_formats = [
-
-                                f"{check_amount:,.2f}",
-                                f"{check_amount:.2f}",
-                                str(int(check_amount)),
-                                str(check_amount)
-
-                            ]
-
-                            for amt in amount_formats:
-
-                                amt_clean = amt.replace(
-                                    ",",
-                                    ""
-                                )
-
-                                if amt_clean in pdf_amount_text:
-
-                                    amount_found = True
-                                    matched_amount = amt
-                                    break
-
-                            if amount_found:
+                                amount_found = True
+                                matched_amount = num
                                 break
 
                         except:
@@ -679,9 +658,13 @@ if run_button:
 
             mismatch_df = report_df[
 
-                report_df[
-                    "Final_Status"
-                ] == "AMOUNT MISMATCH"
+                report_df["Final_Status"].isin([
+
+                    "AMOUNT MISMATCH",
+                    "VENDOR CODE MISMATCH",
+                    "INVOICE NOT FOUND"
+
+                ])
 
             ]
 
