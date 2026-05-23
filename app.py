@@ -51,10 +51,6 @@ if run_button:
 
     else:
 
-        st.success(
-            "Files uploaded successfully"
-        )
-
         with tempfile.TemporaryDirectory() as temp_dir:
 
             # =========================================
@@ -67,7 +63,6 @@ if run_button:
             )
 
             with open(zip_path, "wb") as f:
-
                 f.write(zip_file.read())
 
             # =========================================
@@ -93,7 +88,7 @@ if run_button:
             )
 
             # =========================================
-            # READ EXCEL
+            # DETECT SHEET
             # =========================================
 
             excel_sheets = pd.ExcelFile(
@@ -120,18 +115,14 @@ if run_button:
                     ]
 
                     invoice_found = any(
-
                         "invoice" in c
-
                         for c in cols
                     )
 
                     amount_found = any(
-
                         "amt" in c
                         or
                         "amount" in c
-
                         for c in cols
                     )
 
@@ -145,12 +136,7 @@ if run_button:
                         break
 
                 except:
-
                     pass
-
-            # =========================================
-            # NO SHEET FOUND
-            # =========================================
 
             if selected_sheet is None:
 
@@ -161,7 +147,7 @@ if run_button:
                 st.stop()
 
             # =========================================
-            # LOAD SHEET
+            # LOAD EXCEL
             # =========================================
 
             detail_df = pd.read_excel(
@@ -197,9 +183,7 @@ if run_button:
 
                 col_lower = col.lower().strip()
 
-                # =========================================
                 # INVOICE COLUMN
-                # =========================================
 
                 if (
                     "invoice" in col_lower
@@ -213,9 +197,7 @@ if run_button:
 
                     invoice_col = col
 
-                # =========================================
                 # VENDOR COLUMN
-                # =========================================
 
                 elif (
 
@@ -229,9 +211,7 @@ if run_button:
 
                     vendor_col = col
 
-                # =========================================
                 # AMOUNT COLUMN
-                # =========================================
 
                 elif (
 
@@ -262,7 +242,7 @@ if run_button:
                             amount_col = col
 
             # =========================================
-            # COLUMN CHECK
+            # CHECK COLUMNS
             # =========================================
 
             if (
@@ -274,7 +254,7 @@ if run_button:
             ):
 
                 st.error(
-                    "Required columns not found in Excel"
+                    "Required columns not found"
                 )
 
                 st.write(
@@ -332,10 +312,8 @@ if run_button:
             )
 
             detail_df[amount_col] = pd.to_numeric(
-
                 detail_df[amount_col],
                 errors="coerce"
-
             )
 
             # =========================================
@@ -361,19 +339,6 @@ if run_button:
 
                         if file.lower().endswith(".pdf"):
 
-                            # Ignore cheque files
-
-                            if re.search(
-
-                                r'Cheque Request|Chq\. Req|Cheq\. Req',
-
-                                file,
-
-                                re.IGNORECASE
-                            ):
-
-                                continue
-
                             pdf_path = os.path.join(
                                 folder_path,
                                 file
@@ -392,19 +357,13 @@ if run_button:
                                         text = page.extract_text()
 
                                         if text:
-
                                             full_text += text
 
-                            except Exception as e:
-
-                                st.write(
-                                    f"PDF Error : {file}"
-                                )
-
-                                st.write(e)
+                            except:
+                                pass
 
                             # =========================================
-                            # EXTRACT INVOICE NUMBER
+                            # EXTRACT INVOICE
                             # =========================================
 
                             invoice_match = re.search(
@@ -430,16 +389,9 @@ if run_button:
                                 )
 
                                 if numbers:
-
                                     invoice_number = numbers[-1]
-
                                 else:
-
                                     invoice_number = "NOT FOUND"
-
-                            # =========================================
-                            # SAVE RESULT
-                            # =========================================
 
                             results.append({
 
@@ -451,7 +403,7 @@ if run_button:
                             })
 
             # =========================================
-            # CREATE REPORT DF
+            # CREATE REPORT
             # =========================================
 
             report_df = pd.DataFrame(
@@ -464,200 +416,210 @@ if run_button:
 
             def validate_invoice(row):
 
-                invoice = str(
-                    row["Invoice_Number"]
-                ).strip()
+                try:
 
-                pdf_text = str(
-                    row["PDF_Text"]
-                )
-
-                pdf_text_clean = re.sub(
-                    r'[^A-Za-z0-9.]',
-                    '',
-                    pdf_text
-                )
-
-                # =========================================
-                # FIND INVOICE ROWS
-                # =========================================
-
-                invoice_rows = detail_df[
-
-                    detail_df[invoice_col]
-                    .astype(str)
-                    .str.strip() == invoice
-
-                ]
-
-                # =========================================
-                # INVOICE NOT FOUND
-                # =========================================
-
-                if len(invoice_rows) == 0:
-
-                    return pd.Series([
-
-                        "NOT FOUND",
-                        "NOT FOUND",
-                        "NOT FOUND",
-                        "INVOICE NOT FOUND"
-
-                    ])
-
-                # =========================================
-                # MATCH VENDOR + INVOICE
-                # =========================================
-
-                matched_row = None
-
-                for idx, excel_row in invoice_rows.iterrows():
-
-                    vendor_code = str(
-                        excel_row[vendor_col]
+                    invoice = str(
+                        row["Invoice_Number"]
                     ).strip()
 
-                    vendor_code_clean = re.sub(
-                        r'\.0$',
+                    pdf_text = str(
+                        row["PDF_Text"]
+                    )
+
+                    pdf_text_clean = re.sub(
+                        r'[^A-Za-z0-9.]',
                         '',
-                        vendor_code
+                        pdf_text
                     )
 
-                    vendor_found = (
+                    invoice_rows = detail_df[
 
-                        vendor_code_clean
-                        in
-                        pdf_text_clean
+                        detail_df[invoice_col]
+                        .astype(str)
+                        .str.strip() == invoice
 
-                    )
+                    ]
 
-                    # BOTH CONDITIONS REQUIRED
+                    # =========================================
+                    # INVOICE NOT FOUND
+                    # =========================================
 
-                    if (
-                        vendor_found
-                        and
-                        invoice == str(
-                            excel_row[invoice_col]
+                    if len(invoice_rows) == 0:
+
+                        return pd.Series([
+
+                            "NOT FOUND",
+                            "NOT FOUND",
+                            "NOT FOUND",
+                            "INVOICE NOT FOUND"
+
+                        ])
+
+                    matched_row = None
+
+                    # =========================================
+                    # MATCH VENDOR + INVOICE
+                    # =========================================
+
+                    for idx, excel_row in invoice_rows.iterrows():
+
+                        vendor_code = str(
+                            excel_row[vendor_col]
                         ).strip()
-                    ):
 
-                        matched_row = excel_row
-                        break
+                        vendor_code_clean = re.sub(
+                            r'\.0$',
+                            '',
+                            vendor_code
+                        )
 
-                # =========================================
-                # VENDOR MISMATCH
-                # =========================================
+                        vendor_found = (
 
-                if matched_row is None:
+                            vendor_code_clean
+                            in
+                            pdf_text_clean
+
+                        )
+
+                        if (
+                            vendor_found
+                            and
+                            invoice == str(
+                                excel_row[invoice_col]
+                            ).strip()
+                        ):
+
+                            matched_row = excel_row
+                            break
+
+                    # =========================================
+                    # VENDOR MISMATCH
+                    # =========================================
+
+                    if matched_row is None:
+
+                        return pd.Series([
+
+                            "NOT FOUND",
+                            "NOT FOUND",
+                            "NOT FOUND",
+                            "VENDOR CODE MISMATCH"
+
+                        ])
+
+                    excel_amount = matched_row[
+                        amount_col
+                    ]
+
+                    vendor_code = str(
+                        matched_row[vendor_col]
+                    ).strip()
+
+                    amount_found = False
+
+                    matched_amount = "NOT FOUND"
+
+                    pdf_amount_text = (
+                        pdf_text.replace(",", "")
+                    )
+
+                    # =========================================
+                    # AMOUNT MATCH
+                    # =========================================
+
+                    for diff in range(-2, 3):
+
+                        try:
+
+                            check_amount = round(
+                                excel_amount + diff,
+                                2
+                            )
+
+                            amount_formats = [
+
+                                f"{check_amount:,.2f}",
+                                f"{check_amount:.2f}",
+                                str(int(check_amount)),
+                                str(check_amount)
+
+                            ]
+
+                            for amt in amount_formats:
+
+                                amt_clean = amt.replace(
+                                    ",",
+                                    ""
+                                )
+
+                                if amt_clean in pdf_amount_text:
+
+                                    amount_found = True
+                                    matched_amount = amt
+                                    break
+
+                            if amount_found:
+                                break
+
+                        except:
+                            pass
+
+                    # =========================================
+                    # FINAL STATUS
+                    # =========================================
+
+                    if amount_found:
+
+                        status = "FULL MATCHED"
+
+                    else:
+
+                        status = "AMOUNT MISMATCH"
 
                     return pd.Series([
 
-                        "NOT FOUND",
-                        "NOT FOUND",
-                        "NOT FOUND",
-                        "VENDOR CODE MISMATCH"
+                        vendor_code,
+                        excel_amount,
+                        matched_amount,
+                        status
 
                     ])
 
                 # =========================================
-                # EXCEL VALUES
+                # FAILSAFE
                 # =========================================
 
-                excel_amount = matched_row[
-                    amount_col
-                ]
+                except Exception as e:
 
-                vendor_code = str(
-                    matched_row[vendor_col]
-                ).strip()
+                    return pd.Series([
 
-                # =========================================
-                # AMOUNT CHECK
-                # =========================================
+                        "ERROR",
+                        "ERROR",
+                        "ERROR",
+                        f"ERROR : {str(e)}"
 
-                amount_found = False
-
-                matched_amount = "NOT FOUND"
-
-                pdf_amount_text = (
-                    pdf_text.replace(",", "")
-                )
-
-                for diff in range(-2, 3):
-
-                    try:
-
-                        check_amount = round(
-                            excel_amount + diff,
-                            2
-                        )
-
-                        amount_formats = [
-
-                            f"{check_amount:,.2f}",
-                            f"{check_amount:.2f}",
-                            str(int(check_amount)),
-                            str(check_amount)
-
-                        ]
-
-                        for amt in amount_formats:
-
-                            amt_clean = amt.replace(
-                                ",",
-                                ""
-                            )
-
-                            if amt_clean in pdf_amount_text:
-
-                                amount_found = True
-                                matched_amount = amt
-                                break
-
-                        if amount_found:
-
-                            break
-
-                    except:
-
-                        pass
-
-                # =========================================
-                # FINAL STATUS
-                # =========================================
-
-                if amount_found:
-
-                    status = "FULL MATCHED"
-
-                else:
-
-                    status = "AMOUNT MISMATCH"
-
-                # =========================================
-                # RETURN EXACTLY 4 VALUES
-                # =========================================
-
-                return pd.Series([
-
-                    vendor_code,
-                    excel_amount,
-                    matched_amount,
-                    status
-
-                ])
+                    ])
 
             # =========================================
             # APPLY VALIDATION
             # =========================================
 
-            report_df[[
+            validation_results = report_df.apply(
+                validate_invoice,
+                axis=1
+            )
+
+            validation_results.columns = [
+
                 "Vendor_Code",
                 "Excel_Amount",
                 "Matched_Amount_In_PDF",
                 "Final_Status"
-            ]] = report_df.apply(
-                validate_invoice,
+
+            ]
+
+            report_df = pd.concat(
+                [report_df, validation_results],
                 axis=1
             )
 
@@ -696,15 +658,6 @@ if run_button:
 
             ]
 
-            duplicate_df = duplicate_df.sort_values(
-
-                by=[
-                    "Vendor_Code",
-                    "Invoice_Number"
-                ]
-
-            )
-
             # =========================================
             # MISMATCH REPORT
             # =========================================
@@ -718,30 +671,6 @@ if run_button:
             ]
 
             # =========================================
-            # SUMMARY
-            # =========================================
-
-            total_files = len(report_df)
-
-            matched_count = len(
-
-                report_df[
-                    report_df[
-                        "Final_Status"
-                    ] == "FULL MATCHED"
-                ]
-
-            )
-
-            mismatch_count = len(
-                mismatch_df
-            )
-
-            duplicate_count = len(
-                duplicate_df
-            )
-
-            # =========================================
             # DASHBOARD
             # =========================================
 
@@ -753,22 +682,28 @@ if run_button:
 
             col1.metric(
                 "Total Files",
-                total_files
+                len(report_df)
             )
 
             col2.metric(
                 "Matched",
-                matched_count
+                len(
+                    report_df[
+                        report_df[
+                            "Final_Status"
+                        ] == "FULL MATCHED"
+                    ]
+                )
             )
 
             col3.metric(
-                "Mismatched",
-                mismatch_count
+                "Mismatch",
+                len(mismatch_df)
             )
 
             col4.metric(
                 "Duplicates",
-                duplicate_count
+                len(duplicate_df)
             )
 
             # =========================================
@@ -776,42 +711,42 @@ if run_button:
             # =========================================
 
             st.subheader(
-                "Final Validation Report"
+                "Final Report"
             )
 
             st.dataframe(report_df)
 
             # =========================================
-            # SAVE EXCEL REPORTS
+            # SAVE REPORTS
             # =========================================
 
-            final_report_path = os.path.join(
+            final_path = os.path.join(
                 temp_dir,
-                "Final_Validated_Report.xlsx"
+                "Final_Report.xlsx"
             )
 
-            duplicate_report_path = os.path.join(
+            duplicate_path = os.path.join(
                 temp_dir,
                 "Duplicate_Report.xlsx"
             )
 
-            mismatch_report_path = os.path.join(
+            mismatch_path = os.path.join(
                 temp_dir,
                 "Mismatch_Report.xlsx"
             )
 
             report_df.to_excel(
-                final_report_path,
+                final_path,
                 index=False
             )
 
             duplicate_df.to_excel(
-                duplicate_report_path,
+                duplicate_path,
                 index=False
             )
 
             mismatch_df.to_excel(
-                mismatch_report_path,
+                mismatch_path,
                 index=False
             )
 
@@ -819,38 +754,20 @@ if run_button:
             # DOWNLOAD BUTTONS
             # =========================================
 
-            final_file = open(
-                final_report_path,
-                "rb"
-            ).read()
-
-            duplicate_file = open(
-                duplicate_report_path,
-                "rb"
-            ).read()
-
-            mismatch_file = open(
-                mismatch_report_path,
-                "rb"
-            ).read()
-
             st.download_button(
-                label="Download Final Report",
-                data=final_file,
-                file_name="Final_Validated_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "Download Final Report",
+                open(final_path, "rb").read(),
+                file_name="Final_Report.xlsx"
             )
 
             st.download_button(
-                label="Download Duplicate Report",
-                data=duplicate_file,
-                file_name="Duplicate_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "Download Duplicate Report",
+                open(duplicate_path, "rb").read(),
+                file_name="Duplicate_Report.xlsx"
             )
 
             st.download_button(
-                label="Download Mismatch Report",
-                data=mismatch_file,
-                file_name="Mismatch_Report.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                "Download Mismatch Report",
+                open(mismatch_path, "rb").read(),
+                file_name="Mismatch_Report.xlsx"
             )
